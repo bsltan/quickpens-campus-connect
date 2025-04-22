@@ -5,6 +5,8 @@ import Footer from '../components/Footer';
 import Hero from '../components/Hero';
 import RoleSelection from '../components/RoleSelection';
 import FeatureCard from '../components/features/FeatureCard';
+import { Card, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
 
 const Index = () => {
   return (
