@@ -1,9 +1,18 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Header = () => {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
   return (
     <header className="bg-white shadow-sm py-4">
       <div className="container-custom flex justify-between items-center">
@@ -26,8 +35,39 @@ const Header = () => {
           </Link>
         </nav>
         <div className="flex items-center gap-4">
-          <Button variant="outline" className="hidden md:block">Log In</Button>
-          <Button className="bg-quickpens-navy text-white hover:bg-quickpens-navy/90">Sign Up</Button>
+          {user ? (
+            <>
+              <Button 
+                variant="outline" 
+                className="hidden md:block"
+                onClick={() => navigate('/profile')}
+              >
+                Profile
+              </Button>
+              <Button 
+                className="bg-quickpens-navy text-white hover:bg-quickpens-navy/90"
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                variant="outline" 
+                className="hidden md:block"
+                onClick={() => navigate('/signin')}
+              >
+                Log In
+              </Button>
+              <Button 
+                className="bg-quickpens-navy text-white hover:bg-quickpens-navy/90"
+                onClick={() => navigate('/signup')}
+              >
+                Sign Up
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>
