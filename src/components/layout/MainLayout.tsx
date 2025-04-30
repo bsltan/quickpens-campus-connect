@@ -2,6 +2,8 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMode } from '@/contexts/ModeContext';
 import { Button } from '@/components/ui/button';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -10,13 +12,14 @@ interface MainLayoutProps {
 export default function MainLayout({ children }: MainLayoutProps) {
   const { user, signOut } = useAuth();
   const { mode, setMode } = useMode();
+  const { theme, toggleTheme } = useTheme();
 
   if (!user) {
     return <div className="h-screen flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -44,6 +47,17 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 className="ml-2"
               >
                 Sign Out
+              </Button>
+              <Button
+                variant="outline"
+                onClick={toggleTheme}
+                className="ml-2"
+              >
+                {theme === 'light' ? (
+                  <Moon className="w-4 h-4" />
+                ) : (
+                  <Sun className="w-4 h-4" />
+                )}
               </Button>
             </div>
           </div>

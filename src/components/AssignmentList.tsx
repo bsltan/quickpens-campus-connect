@@ -4,6 +4,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { BookOpen, Mail, Search } from 'lucide-react';
 
 type Assignment = {
   id: string;
@@ -30,11 +32,16 @@ export default function AssignmentList({
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Add loading state
+  const [isLoading, setIsLoading] = useState(true);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [filteredAssignments, setFilteredAssignments] = useState<Assignment[]>([]);
 
   useEffect(() => {
     const fetchAssignments = async () => {
+      setIsLoading(true);
+      
       let query = supabase.from('assignments').select('*');
 
       if (selectedCollege) {
@@ -54,6 +61,8 @@ export default function AssignmentList({
         setAssignments(data);
         setFilteredAssignments(data);
       }
+
+      setIsLoading(false);
     };
 
     fetchAssignments();
@@ -101,44 +110,52 @@ export default function AssignmentList({
 
   return (
     <div className="space-y-4">
-      {filteredAssignments.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
+      ) : filteredAssignments.length > 0 ? (
         filteredAssignments.map((assignment) => (
-          <Card key={assignment.id}>
-            <CardHeader>
-              <CardTitle>
-                {assignment.topic} - {assignment.subject}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="space-y-2">
-                    <p className="text-gray-600">{assignment.description}</p>
-                    <div className="flex flex-col sm:flex-row gap-2 text-sm text-gray-500">
-                      <div>Pages: {assignment.estimated_pages}</div>
-                      <div>Contact: {assignment.contact_details}</div>
-                    </div>
+          <Card key={assignment.id} className="overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-semibold">
+                <div className="flex items-center justify-between">
+                  <span>{assignment.topic} - {assignment.subject}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">
+                      Deadline: {new Date(assignment.deadline).toLocaleDateString()}
+                    </span>
+                    <Badge
+                      variant={
+                        assignment.status === 'available' ? 'default' : 'secondary'
+                      }
+                    >
+                      {assignment.status}
+                    </Badge>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">
-                    Deadline: {new Date(assignment.deadline).toLocaleDateString()}
-                  </span>
-                  <span className="text-sm text-gray-500">•</span>
-                  <span className="text-sm">
-                    Status:{' '}
-                    <span className={`capitalize ${
-                      assignment.status === 'available' ? 'text-green-600' : 'text-blue-600'
-                    }`}>
-                      {assignment.status}
-                    </span>
-                  </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                <div className="text-gray-600 line-clamp-3">
+                  {assignment.description}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 text-sm text-gray-500">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4" />
+                    <span>{assignment.estimated_pages} pages</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    <span>{assignment.contact_details}</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="mt-4 flex gap-2 justify-end">
                 <Button
                   variant="outline"
-                  className="mt-4"
+                  className="w-full sm:w-auto"
                   disabled={!isWriterMode && assignment.status !== 'available'}
                 >
                   {isWriterMode ? 'Claim Assignment' : 'View Details'}
@@ -146,7 +163,7 @@ export default function AssignmentList({
                 {!isWriterMode && user?.id === assignment.created_by && (
                   <Button
                     variant="destructive"
-                    className="mt-4"
+                    className="w-full sm:w-auto"
                     onClick={() => handleDeleteAssignment(assignment.id)}
                   >
                     Delete
@@ -157,9 +174,22 @@ export default function AssignmentList({
           </Card>
         ))
       ) : (
-        <Card>
-          <CardContent>
-            <p className="text-gray-500">No assignments found matching your criteria.</p>
+        <Card className="overflow-hidden">
+          <CardContent className="p-6 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <Search className="w-12 h-12 text-gray-400" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                No assignments found
+              </h3>
+              <p className="text-gray-500">
+                {searchTerm ? 'No assignments match your search criteria.' : 'No assignments available.'}
+              </p>
+              {isWriterMode && (
+                <Button variant="outline" className="mt-4">
+                  Post a New Assignment
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
