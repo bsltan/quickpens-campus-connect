@@ -92,6 +92,55 @@ The application uses Supabase with the following tables:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+## Deployment
+
+### Deploying to Vercel
+
+1. Connect your GitHub repository to Vercel:
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Click "Add New Project"
+   - Select your GitHub repository
+   - Click "Deploy"
+
+2. Configure Environment Variables:
+   - Go to your project settings in Vercel
+   - Navigate to "Environment Variables"
+   - Add the following variables:
+
+   ```
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_AUTH_REDIRECT_URL=https://your-vercel-domain/auth/callback
+   ```
+
+   Note: The `VITE_AUTH_REDIRECT_URL` should point to your deployed Vercel domain.
+
+3. Update Supabase Authentication:
+   - Go to your Supabase project
+   - Navigate to Authentication > Settings
+   - Add your Vercel domain to the "Site URL" field
+   - Add your Vercel domain to the "Callback URLs" field
+
+4. Deploy:
+   - Push your changes to GitHub
+   - Vercel will automatically detect changes and deploy your application
+
+### Production Considerations
+
+1. **Database Security**:
+   - Ensure your Supabase project has proper Row Level Security (RLS) policies
+   - Keep your service role key secure and never expose it in client-side code
+
+2. **Environment Variables**:
+   - Never commit sensitive credentials to version control
+   - Use environment variables for all configuration values
+   - Keep your `.env` file in `.gitignore`
+
+3. **Performance**:
+   - Consider using Vercel's Edge Functions for server-side operations
+   - Implement proper caching strategies
+   - Optimize assets and images
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
