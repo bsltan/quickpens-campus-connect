@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
 
 type Assignment = {
   id: string;
@@ -26,6 +28,8 @@ export default function AssignmentList({
   isWriterMode: boolean;
   searchTerm: string;
 }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [filteredAssignments, setFilteredAssignments] = useState<Assignment[]>([]);
 
@@ -37,8 +41,11 @@ export default function AssignmentList({
         query = query.eq('college_slug', selectedCollege);
       }
 
+      // Filter assignments based on user role
       if (isWriterMode) {
         query = query.eq('status', 'available');
+      } else if (user) {
+        query = query.eq('created_by', user.id);
       }
 
       const { data, error } = await query;
@@ -65,6 +72,32 @@ export default function AssignmentList({
     );
     setFilteredAssignments(filtered);
   }, [searchTerm, assignments]);
+
+  const handleDeleteAssignment = async (assignmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('assignments')
+        .delete()
+        .eq('id', assignmentId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Assignment deleted successfully',
+      });
+
+      // Refresh assignments
+      setAssignments(prev => prev.filter(a => a.id !== assignmentId));
+      setFilteredAssignments(prev => prev.filter(a => a.id !== assignmentId));
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete assignment',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -102,13 +135,24 @@ export default function AssignmentList({
                   </span>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                className="mt-4"
-                disabled={!isWriterMode && assignment.status !== 'available'}
-              >
-                {isWriterMode ? 'Claim Assignment' : 'View Details'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  disabled={!isWriterMode && assignment.status !== 'available'}
+                >
+                  {isWriterMode ? 'Claim Assignment' : 'View Details'}
+                </Button>
+                {!isWriterMode && user?.id === assignment.created_by && (
+                  <Button
+                    variant="destructive"
+                    className="mt-4"
+                    onClick={() => handleDeleteAssignment(assignment.id)}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))
