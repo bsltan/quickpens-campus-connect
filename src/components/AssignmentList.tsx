@@ -21,6 +21,16 @@ type Assignment = {
   created_at: string;
 };
 
+type AssignmentClaim = {
+  id: string;
+  assignment_id: string;
+  user_id: string;
+  user_email: string;
+  user_contact: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+};
+
 export default function AssignmentList({
   selectedCollege,
   isWriterMode,
@@ -37,6 +47,9 @@ export default function AssignmentList({
   const [isLoading, setIsLoading] = useState(true);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [filteredAssignments, setFilteredAssignments] = useState<Assignment[]>([]);
+  const [claims, setClaims] = useState<AssignmentClaim[]>([]);
+  const [showClaimsModal, setShowClaimsModal] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -82,6 +95,48 @@ export default function AssignmentList({
     setFilteredAssignments(filtered);
   }, [searchTerm, assignments]);
 
+  useEffect(() => {
+    const fetchAssignmentClaims = async () => {
+      if (!user || !selectedAssignment) return;
+      
+      const { data: assignment } = await supabase
+        .from('assignments')
+        .select('created_by')
+        .eq('id', selectedAssignment)
+        .single();
+
+      // Only fetch claims if user is the assignment owner
+      if (assignment && assignment.created_by === user.id) {
+        const { data, error } = await supabase
+          .from('assignment_claims')
+          .select(`
+            id,
+            assignment_id,
+            user_id,
+            user_email,
+            user_contact,
+            status,
+            created_at
+          `)
+          .eq('assignment_id', selectedAssignment)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          setClaims(data);
+        } else {
+          console.error('Error fetching claims:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to load applications',
+            variant: 'destructive',
+          });
+        }
+      }
+    };
+
+    fetchAssignmentClaims();
+  }, [selectedAssignment, user]);
+
   const handleDeleteAssignment = async (assignmentId: string) => {
     try {
       const { error } = await supabase
@@ -103,6 +158,165 @@ export default function AssignmentList({
       toast({
         title: 'Error',
         description: 'Failed to delete assignment',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleApplyClaim = async (assignmentId: string) => {
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'Please login to claim assignments',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Check if user has already applied
+      const { data: existingClaims } = await supabase
+        .from('assignment_claims')
+        .select('*')
+        .eq('assignment_id', assignmentId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingClaims) {
+        toast({
+          title: 'Error',
+          description: 'You have already applied for this assignment',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('assignment_claims')
+        .insert({
+          assignment_id: assignmentId,
+          user_id: user.id,
+          user_email: user.email,
+          user_contact: '', // This should be filled from user profile if available
+          status: 'pending',
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Application submitted successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to submit application',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleViewClaims = async (assignmentId: string) => {
+    setSelectedAssignment(assignmentId);
+    setShowClaimsModal(true);
+  };
+
+  const handleUpdateClaimStatus = async (claimId: string, newStatus: 'accepted' | 'rejected') => {
+    try {
+      // Check if any claim is already accepted for this assignment
+      if (newStatus === 'accepted') {
+        const claim = claims.find(c => c.id === claimId);
+        if (!claim) return;
+
+        const { data: existingAccepted } = await supabase
+          .from('assignment_claims')
+          .select('id')
+          .eq('assignment_id', claim.assignment_id)
+          .eq('status', 'accepted')
+          .single();
+
+        if (existingAccepted) {
+          toast({
+            title: 'Error',
+            description: 'Another application has already been accepted for this assignment',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        // Update assignment status first
+        const { error: assignmentError } = await supabase
+          .from('assignments')
+          .update({ status: 'claimed' })
+          .eq('id', claim.assignment_id)
+          .eq('status', 'available'); // Only update if still available
+
+        if (assignmentError) {
+          toast({
+            title: 'Error',
+            description: 'This assignment has already been claimed',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        // Update local assignments state
+        setAssignments(prevAssignments =>
+          prevAssignments.map(assignment =>
+            assignment.id === claim.assignment_id
+              ? { ...assignment, status: 'claimed' }
+              : assignment
+          )
+        );
+      }
+
+      // Update claim status
+      const { error } = await supabase
+        .from('assignment_claims')
+        .update({ status: newStatus })
+        .eq('id', claimId);
+
+      if (error) throw error;
+
+      // Update local claims state
+      setClaims(prevClaims => 
+        prevClaims.map(claim => 
+          claim.id === claimId ? { ...claim, status: newStatus } : claim
+        )
+      );
+
+      // If accepting, reject all other claims
+      if (newStatus === 'accepted') {
+        const claim = claims.find(c => c.id === claimId);
+        if (claim) {
+          const { error: rejectError } = await supabase
+            .from('assignment_claims')
+            .update({ status: 'rejected' })
+            .eq('assignment_id', claim.assignment_id)
+            .neq('id', claimId);
+
+          if (!rejectError) {
+            // Update local state for other claims
+            setClaims(prevClaims =>
+              prevClaims.map(c =>
+                c.assignment_id === claim.assignment_id && c.id !== claimId
+                  ? { ...c, status: 'rejected' }
+                  : c
+              )
+            );
+          }
+        }
+      }
+
+      toast({
+        title: 'Success',
+        description: `Application ${newStatus}`,
+      });
+    } catch (error) {
+      console.error('Error updating claim status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update application status',
         variant: 'destructive',
       });
     }
@@ -153,21 +367,32 @@ export default function AssignmentList({
                 </div>
               </div>
               <div className="mt-4 flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  disabled={!isWriterMode && assignment.status !== 'available'}
-                >
-                  {isWriterMode ? 'Claim Assignment' : 'View Details'}
-                </Button>
-                {!isWriterMode && user?.id === assignment.created_by && (
+                {isWriterMode && assignment.status === 'available' && (
                   <Button
-                    variant="destructive"
+                    variant="outline"
                     className="w-full sm:w-auto"
-                    onClick={() => handleDeleteAssignment(assignment.id)}
+                    onClick={() => handleApplyClaim(assignment.id)}
                   >
-                    Delete
+                    Apply to Claim
                   </Button>
+                )}
+                {!isWriterMode && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => handleViewClaims(assignment.id)}
+                    >
+                      View Applications
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="w-full sm:w-auto"
+                      onClick={() => handleDeleteAssignment(assignment.id)}
+                    >
+                      Delete
+                    </Button>
+                  </>
                 )}
               </div>
             </CardContent>
@@ -192,6 +417,57 @@ export default function AssignmentList({
             </div>
           </CardContent>
         </Card>
+      )}
+      {showClaimsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Assignment Applications</h2>
+              <Button variant="outline" onClick={() => setShowClaimsModal(false)}>
+                Close
+              </Button>
+            </div>
+            {claims.length === 0 ? (
+              <p>No applications yet</p>
+            ) : (
+              <div className="space-y-4">
+                {claims.map((claim) => (
+                  <div key={claim.id} className="border p-4 rounded">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p><strong>Writer Email:</strong> {claim.user_email}</p>
+                        <p><strong>Contact:</strong> {claim.user_contact || 'Not provided'}</p>
+                        <p><strong>Status:</strong> <span className={
+                          claim.status === 'accepted' ? 'text-green-600' :
+                          claim.status === 'rejected' ? 'text-red-600' :
+                          'text-yellow-600'
+                        }>{claim.status}</span></p>
+                        <p><strong>Applied on:</strong> {new Date(claim.created_at).toLocaleDateString()}</p>
+                      </div>
+                      {claim.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="default"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleUpdateClaimStatus(claim.id, 'accepted')}
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleUpdateClaimStatus(claim.id, 'rejected')}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
