@@ -11,7 +11,7 @@ import RedirectIfAuthenticated from "./components/auth/RedirectIfAuthenticated";
 import SignIn from "./components/auth/SignIn";
 import SignUp from "./components/auth/SignUp";
 import ResetPassword from "./components/auth/ResetPassword";
-import Profile from "./components/auth/Profile";
+import Profile from "./components/Profile";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Home from "./pages/Home";
@@ -37,15 +37,17 @@ const App = () => (
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/profile" element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                } />
                 <Route path="/dashboard" element={
                   <ProtectedRoute>
                     <MainLayout>
                       <Home />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Profile />
                     </MainLayout>
                   </ProtectedRoute>
                 } />

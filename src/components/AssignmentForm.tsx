@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,15 +7,23 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
+import { Link } from 'react-router-dom';
 
 interface AssignmentFormProps {
   onSuccess?: () => void;
 }
 
+type Profile = {
+  id: string;
+  email: string;
+  phone_number: string | null;
+};
+
 export default function AssignmentForm({ onSuccess }: AssignmentFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [formData, setFormData] = useState({
     topic: '',
     subject: '',
@@ -25,11 +33,52 @@ export default function AssignmentForm({ onSuccess }: AssignmentFormProps) {
     contact_details: '',
   });
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        setProfile(data);
+        // Pre-fill contact details with profile data
+        setFormData(prev => ({
+          ...prev,
+          contact_details: data.phone_number || ''
+        }));
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Check if contact details are available
+      if (!profile?.phone_number && !formData.contact_details) {
+        toast({
+          title: 'Missing Contact Details',
+          description: (
+            <div>
+              Please add your contact number in your <Link to="/profile" className="underline">profile</Link> or provide it in the form.
+            </div>
+          ),
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('assignments')
         .insert({
@@ -38,7 +87,7 @@ export default function AssignmentForm({ onSuccess }: AssignmentFormProps) {
           deadline: formData.deadline,
           estimated_pages: formData.estimated_pages,
           description: formData.description,
-          contact_details: formData.contact_details,
+          contact_details: profile?.phone_number || formData.contact_details,
           college_slug: user?.user_metadata?.college_slug || '',
           status: 'available',
           created_by: user?.id,
@@ -100,7 +149,7 @@ export default function AssignmentForm({ onSuccess }: AssignmentFormProps) {
             <Input
               id="subject"
               name="subject"
-              placeholder="Enter subject name"
+              placeholder="Enter subject"
               value={formData.subject}
               onChange={handleChange}
               required
@@ -112,7 +161,7 @@ export default function AssignmentForm({ onSuccess }: AssignmentFormProps) {
             <Input
               id="deadline"
               name="deadline"
-              type="datetime-local"
+              type="date"
               value={formData.deadline}
               onChange={handleChange}
               required
@@ -125,8 +174,8 @@ export default function AssignmentForm({ onSuccess }: AssignmentFormProps) {
               id="estimatedPages"
               name="estimatedPages"
               type="number"
-              min="1"
-              value={formData.estimatedPages}
+              placeholder="Enter estimated pages"
+              value={formData.estimated_pages}
               onChange={handleChange}
               required
             />
@@ -137,26 +186,35 @@ export default function AssignmentForm({ onSuccess }: AssignmentFormProps) {
             <Textarea
               id="description"
               name="description"
-              placeholder="Provide details about the assignment requirements"
+              placeholder="Enter assignment description"
               value={formData.description}
               onChange={handleChange}
               required
             />
           </div>
 
-          <div>
-            <Label htmlFor="contactDetails">Contact Details</Label>
-            <Textarea
-              id="contactDetails"
-              name="contactDetails"
-              placeholder="How writers can contact you (email, phone, etc.)"
-              value={formData.contactDetails}
-              onChange={handleChange}
-              required
-            />
-          </div>
+          {!profile?.phone_number && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="contactDetails">Contact Details</Label>
+                <Link 
+                  to="/profile" 
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Add to profile instead
+                </Link>
+              </div>
+              <Input
+                id="contactDetails"
+                name="contactDetails"
+                placeholder="Enter your contact number"
+                value={formData.contact_details}
+                onChange={handleChange}
+              />
+            </div>
+          )}
 
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? 'Posting...' : 'Post Assignment'}
           </Button>
         </form>

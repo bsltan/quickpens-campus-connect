@@ -1,3 +1,6 @@
+-- Drop existing table if exists
+drop table if exists public.assignment_claims;
+
 -- Create assignment_claims table
 create table public.assignment_claims (
     id uuid default gen_random_uuid() primary key,
@@ -30,10 +33,16 @@ create policy "Writers can create claims"
     for insert
     with check (auth.uid() = user_id);
 
--- Assignment owners can view claims for their assignments
-create policy "Assignment owners can view claims for their assignments"
+-- Writers can delete their own claims
+create policy "Writers can delete their own claims"
     on public.assignment_claims
-    for all
+    for delete
+    using (auth.uid() = user_id);
+
+-- Assignment owners can view claims
+create policy "Assignment owners can view claims"
+    on public.assignment_claims
+    for select
     using (
         exists (
             select 1 from public.assignments
@@ -42,10 +51,22 @@ create policy "Assignment owners can view claims for their assignments"
         )
     );
 
--- Assignment owners can update claim status
-create policy "Assignment owners can update claim status"
+-- Assignment owners can update claims
+create policy "Assignment owners can update claims"
     on public.assignment_claims
     for update
+    using (
+        exists (
+            select 1 from public.assignments
+            where assignments.id = assignment_claims.assignment_id
+            and assignments.created_by = auth.uid()
+        )
+    );
+
+-- Assignment owners can delete claims
+create policy "Assignment owners can delete claims"
+    on public.assignment_claims
+    for delete
     using (
         exists (
             select 1 from public.assignments
@@ -61,8 +82,9 @@ begin
     new.updated_at = now();
     return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql security definer;
 
+-- Create trigger for updated_at
 create trigger handle_updated_at
     before update on public.assignment_claims
     for each row
