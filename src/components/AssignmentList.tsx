@@ -36,6 +36,11 @@ type AssignmentClaim = {
   created_at: string;
 };
 
+type DeleteConfirmation = {
+  type: 'assignment' | 'claim';
+  id: string;
+} | null;
+
 export default function AssignmentList() {
   const { user } = useAuth();
   const { mode } = useMode();
@@ -45,6 +50,7 @@ export default function AssignmentList() {
   const [claims, setClaims] = useState<AssignmentClaim[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation>(null);
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -229,8 +235,6 @@ export default function AssignmentList() {
   };
 
   const handleDeleteAssignment = async (assignmentId: string) => {
-    if (!confirm('Are you sure you want to delete this assignment?')) return;
-
     try {
       const { error } = await supabase
         .from('assignments')
@@ -244,6 +248,7 @@ export default function AssignmentList() {
         title: 'Success',
         description: 'Assignment deleted successfully',
       });
+      setDeleteConfirmation(null);
     } catch (error) {
       console.error('Error deleting assignment:', error);
       toast({
@@ -255,8 +260,6 @@ export default function AssignmentList() {
   };
 
   const handleDeleteClaim = async (claimId: string) => {
-    if (!confirm('Are you sure you want to delete this application?')) return;
-
     try {
       const { error } = await supabase
         .from('assignment_claims')
@@ -270,6 +273,7 @@ export default function AssignmentList() {
         title: 'Success',
         description: 'Application deleted successfully',
       });
+      setDeleteConfirmation(null);
     } catch (error) {
       console.error('Error deleting application:', error);
       toast({
@@ -338,7 +342,7 @@ export default function AssignmentList() {
                       </Button>
                       <Button 
                         variant="destructive"
-                        onClick={() => handleDeleteAssignment(assignment.id)}
+                        onClick={() => setDeleteConfirmation({ type: 'assignment', id: assignment.id })}
                       >
                         Delete
                       </Button>
@@ -400,7 +404,7 @@ export default function AssignmentList() {
                           )}
                           <Button
                             variant="outline"
-                            onClick={() => handleDeleteClaim(claim.id)}
+                            onClick={() => setDeleteConfirmation({ type: 'claim', id: claim.id })}
                           >
                             Delete
                           </Button>
@@ -415,6 +419,37 @@ export default function AssignmentList() {
           <DialogClose asChild>
             <Button variant="outline">Close</Button>
           </DialogClose>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirmation} onOpenChange={() => setDeleteConfirmation(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <p>Are you sure you want to delete this {deleteConfirmation?.type}? This action cannot be undone.</p>
+            <div className="flex gap-2 mt-4 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteConfirmation(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (deleteConfirmation?.type === 'assignment') {
+                    handleDeleteAssignment(deleteConfirmation.id);
+                  } else if (deleteConfirmation?.type === 'claim') {
+                    handleDeleteClaim(deleteConfirmation.id);
+                  }
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
