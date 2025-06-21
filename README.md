@@ -141,6 +141,3 @@ The application uses Supabase with the following tables:
    - Implement proper caching strategies
    - Optimize assets and images
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
