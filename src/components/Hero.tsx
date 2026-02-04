@@ -1,8 +1,10 @@
-
 import React from 'react';
 import { Button } from './ui/button';
+import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="bg-gradient-to-b from-white to-blue-50 py-16 md:py-24">
       <div className="container-custom">
@@ -14,16 +16,30 @@ const Hero = () => {
             <p className="text-lg text-gray-600 mb-8 max-w-lg">
               QuickPens is the trusted marketplace where college students can find peers to help with assignments - all within your college community.
             </p>
+
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="bg-quickpens-navy text-white hover:bg-quickpens-navy/90 text-lg px-8">
+              {/* POST ASSIGNMENT BUTTON */}
+              <Button
+                size="lg"
+                className="bg-quickpens-navy text-white hover:bg-quickpens-navy/90 text-lg px-8"
+                onClick={() => navigate('/post-assignment')}
+              >
                 Post an Assignment
               </Button>
-              <Button size="lg" variant="outline" className="border-quickpens-navy text-quickpens-navy hover:bg-quickpens-navy/10 text-lg px-8">
+
+              {/* BECOME A WRITER BUTTON */}
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-quickpens-navy text-quickpens-navy hover:bg-quickpens-navy/10 text-lg px-8"
+                onClick={() => navigate('/become-writer')}
+              >
                 Become a Writer
               </Button>
             </div>
           </div>
-          
+
+          {/* RIGHT SIDE UI CARDS */}
           <div className="relative">
             <div className="bg-white p-6 rounded-lg shadow-lg transform rotate-3 z-10">
               <div className="bg-gray-100 p-4 rounded mb-3">
@@ -42,7 +58,7 @@ const Hero = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-6 rounded-lg shadow-lg absolute top-12 left-12 transform -rotate-6 z-0">
               <div className="bg-gray-100 p-4 rounded mb-3">
                 <div className="h-4 w-32 bg-quickpens-navy/20 rounded mb-2"></div>
@@ -61,6 +77,7 @@ const Hero = () => {
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </section>

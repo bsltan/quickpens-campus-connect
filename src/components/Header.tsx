@@ -8,10 +8,24 @@ const Header = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
-  const handleSignOut = async () => {
+const handleSignOut = async () => {
+  try {
     await signOut();
-    navigate('/');
-  };
+    
+    // Clear stored auth data
+    localStorage.clear();
+    sessionStorage.clear();
+
+    // Redirect to home page
+    navigate('/', { replace: true });
+
+    // Optional: force refresh to reset UI state
+    window.location.reload();
+  } catch (error) {
+    console.error("Logout failed:", error);
+  }
+};
+
 
   return (
     <header className="bg-white shadow-sm py-4">
