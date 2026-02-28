@@ -1,45 +1,58 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function PostAssignment() {
+  const { user } = useAuth();
+  const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [budget, setBudget] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert("Assignment Posted Successfully!");
+  const uploadAssignment = async () => {
+    if (!file) return;
+
+    const filePath = `student/${Date.now()}-${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("assignments")
+      .upload(filePath, file);
+
+    if (uploadError) return alert(uploadError.message);
+
+    const { data } = supabase.storage
+      .from("assignments")
+      .getPublicUrl(filePath);
+
+    await supabase.from("assignments").insert({
+      title,
+      student_id: user.id,
+      file_url: data.publicUrl,
+    });
+
+    alert("Assignment uploaded!");
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-4">Post an Assignment</h1>
+    <div className="p-6">
+      <h2 className="text-2xl font-bold mb-4">Post Assignment</h2>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          className="w-full border p-3 rounded"
-          placeholder="Assignment Title"
-          onChange={(e) => setTitle(e.target.value)}
-          required
-        />
+      <input
+        className="border p-2 mb-3 w-full"
+        placeholder="Assignment Title"
+        onChange={(e) => setTitle(e.target.value)}
+      />
 
-        <textarea
-          className="w-full border p-3 rounded"
-          placeholder="Assignment Description"
-          onChange={(e) => setDescription(e.target.value)}
-          required
-        />
+      <input
+        type="file"
+        accept=".doc,.docx,.pdf"
+        onChange={(e) => setFile(e.target.files?.[0] || null)}
+      />
 
-        <input
-          className="w-full border p-3 rounded"
-          placeholder="Budget (USD)"
-          onChange={(e) => setBudget(e.target.value)}
-          required
-        />
-
-        <button className="bg-blue-700 text-white px-6 py-3 rounded w-full">
-          Submit Assignment
-        </button>
-      </form>
+      <button
+        onClick={uploadAssignment}
+        className="bg-blue-600 text-white px-4 py-2 mt-4"
+      >
+        Upload Assignment
+      </button>
     </div>
   );
 }
