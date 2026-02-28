@@ -16,7 +16,23 @@ export default function WriterDashboard() {
 
     setAssignments(data || []);
   };
+const uploadCompleted = async (file, id) => {
+  const path = `completed/${Date.now()}-${file.name}`;
 
+  await supabase.storage.from("assignments").upload(path, file);
+
+  const { data } = supabase.storage
+    .from("assignments")
+    .getPublicUrl(path);
+
+  await supabase
+    .from("assignments")
+    .update({
+      completed_file_url: data.publicUrl,
+      status: "completed",
+    })
+    .eq("id", id);
+};
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold">Available Assignments</h1>
