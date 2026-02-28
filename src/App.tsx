@@ -49,6 +49,10 @@ const App = () => (
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/post-assignment" element={<PostAssignment />} />
+                <Route path="/student-dashboard" element={<StudentDashboard />} />
+                <Route path="/writer-dashboard" element={<WriterDashboard />} />
+                <Route path="/admin-dashboard" element={<AdminDashboard />} />
 
                 {/* Your NEW Routes */}
                 <Route path="/post-assignment" element={
